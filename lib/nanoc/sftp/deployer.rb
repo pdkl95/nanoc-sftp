@@ -13,18 +13,6 @@ module Nanoc::Sftp
       :compression => true
     }
 
-    def load_highline_if_possible
-      require 'highline/import'
-      @have_hl = true
-    rescue LoadError
-      @have_hl = false
-    end
-
-    def have_highline
-      load_highline_if_possible unless exists? @have_hl
-      @have_hl
-    end
-
     def run
       require 'net/sftp'
 
@@ -48,7 +36,7 @@ module Nanoc::Sftp
         end
       end
 
-      puts "Finished!"
+      msg "Finished!"
     ensure
       system "stty #{stty_backup}"
     end
@@ -58,17 +46,6 @@ module Nanoc::Sftp
         next if entry.name =~ /^[.]/
         yield entry.name
       end
-    end
-
-    def have_yad?
-      ENV['PATH'].split(/:/).each do |dir|
-        file = "#{dir}/yad"
-        if File.executable?(file)
-          @yad = file
-          return @yad
-        end
-      end
-      false
     end
 
     def ask_for_login_fields_with_highline
@@ -163,7 +140,10 @@ module Nanoc::Sftp
 
     def missing_required_login_fields?
       REQUIRED_FIELDS.each do |field|
-        return true if send(field).blank?
+        puts field
+        val = send(field).to_s
+        puts val
+        blank?(val) and reeturn true
       end
       false
     end
@@ -171,21 +151,61 @@ module Nanoc::Sftp
     def login_options
       SSL_TRANSPORT_OPTIONS.tap do |opt|
         opt[:password] = @pass
-        opt[:port]     = @port unless @port.blank?
+        opt[:port]     = @port unless blank? @port
       end
     end
 
     def with_sftp(&block)
       ask_for_login_fields if missing_required_login_fields?
-      say ">>> SFTP: openening a connection to #{@user}@#{host}"
-      say ">>> SFTP: option: #{login_options.inspect}"
+      msg "openening a connection to #{@user}@#{host}"
+      msg "option: #{login_options.inspect}"
       Net::SFTP.start(@host, @user, login_options) do |sftp|
         @sftp = sftp
         block.call
         @sftp = nil
       end
     end
+
+    private
+
+    def load_highline_if_possible
+      require 'highline/import'
+      @have_hl = true
+    rescue LoadError
+      @have_hl = false
+    end
+
+    def have_highline?
+      load_highline_if_possible unless defined? @have_hl
+      @have_hl
+    end
+
+    def msg(*args)
+      msg = args.flatten.join(' ')
+      if have_highline?
+        say msg
+      else
+        puts msg
+      end
+    end
+
+    def have_yad?
+      ENV['PATH'].split(/:/).each do |dir|
+        file = "#{dir}/yad"
+        if File.executable?(file)
+          @yad = file
+          return @yad
+        end
+      end
+      false
+    end
+
+    def blank?(x)
+      return true unless defined? x
+      return true if x.nil?
+      return true if x.respond_to? :length && x.length == 0
+      false
+    end
   end
 end
 
-puts "LOADED Nanoc::Sftp::Deployer"
