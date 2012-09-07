@@ -1,7 +1,8 @@
 # encoding: utf-8
 
-module Nanoc::Extra::Deployers
-  class Sftp < ::Nanoc::Extra::Deployer
+module Nanoc
+  module Sftp
+    class Deployer < ::Nanoc::Extra::Deployer
 
     REQUIRED_FIELDS = [:host, :user, :pass]
     OPTIONAL_FIELDS = [:port]
