@@ -188,3 +188,4 @@ module Nanoc::Sftp
   end
 end
 
+puts "LOADED Nanoc::Sftp::Deployer"
