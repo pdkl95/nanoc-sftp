@@ -140,10 +140,8 @@ module Nanoc::Sftp
 
     def missing_required_login_fields?
       REQUIRED_FIELDS.each do |field|
-        puts field
         val = send(field).to_s
-        puts val
-        blank?(val) and reeturn true
+        blank?(val) and return true
       end
       false
     end
@@ -201,10 +199,8 @@ module Nanoc::Sftp
     end
 
     def blank?(x)
-      return true unless defined? x
-      return true if x.nil?
-      return true if x.respond_to? :length && x.length == 0
-      false
+      x = x.to_s
+      x.nil? || x.empty?
     end
   end
 end
