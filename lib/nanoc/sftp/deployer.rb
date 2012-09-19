@@ -13,6 +13,18 @@ module Nanoc::Sftp
       :compression => true
     }
 
+    attr_accessor :sftp
+
+    def compiled_files
+      @compiled_files ||= self.site.items.map do |item|
+        items.reps.map do |rep|
+          rep.raw_path
+        end
+      end.flatten.compact.select do |f|
+        File.file?(f)
+      end
+    end
+
     def run
       require 'net/sftp'
 
@@ -30,8 +42,8 @@ module Nanoc::Sftp
 
       @target = (self.config[:target] || 'staging').upcase
 
-      with_sftp do |sftp|
-        list "/" do |entry|
+      with_sftp do
+        glob "/", '**/*' do |entry|
           puts entry
         end
       end
@@ -41,11 +53,22 @@ module Nanoc::Sftp
       system "stty #{stty_backup}"
     end
 
-    def list(dir)
-      @sftp.dir.foreach("/") do |entry|
-        next if entry.name =~ /^[.]/
-        yield entry.name
+    def skip_entry?(entry)
+      entry.name.start_with? '.'
+    end
+
+    def filtered_yield(enum)
+      enum.each do |entry|
+        yield entry.name unless skip_entry? entry
       end
+    end
+
+    def list(dir)
+      filtered_yield sftp.dir.foreach(dir).to_enum
+    end
+
+    def glob(path, pattern)
+      filtered_yield sftp.dir.glob(path, pattern).to_enum
     end
 
     def ask_for_login_fields_with_highline
@@ -58,7 +81,7 @@ module Nanoc::Sftp
         q.whitespace = :remove
       }
 
-      @post = ask("What <%= color('Poer') %> is the SFTP server using? ",
+      @post = ask("What <%= color('Port') %> is the SFTP server using? ",
         "(leave it blank to use the standard port, 22/tcp)"
         ) { |q|
         q.default = @port.to_s
