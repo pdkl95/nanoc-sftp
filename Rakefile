@@ -21,7 +21,16 @@ end
 require 'rake'
 
 require 'rubygems/tasks'
-Gem::Tasks.new
+class Gem::Tasks::Install
+  def install(path)
+    run 'gem', 'install', '-q', '--no-rdoc', '--no-ri', path
+  end
+end
+task :validate
+
+Gem::Tasks.new(:scm => false) do |tasks|
+  
+end
 
 require 'rdoc/task'
 RDoc::Task.new do |rdoc|

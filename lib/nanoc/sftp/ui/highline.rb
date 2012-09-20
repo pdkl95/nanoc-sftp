@@ -1,4 +1,4 @@
-module Nanoc::Sftp
+module Nanoc::Sftp::UI
   module Highline
     def load_highline_if_possible
       require 'highline/import'
@@ -9,6 +9,7 @@ module Nanoc::Sftp
 
     def have_highline?
       load_highline_if_possible unless defined? @have_hl
+      puts "Have highline: #{@have_hl}"
       @have_hl
     end
 
@@ -44,6 +45,10 @@ module Nanoc::Sftp
         q.echo = false
         q.whitespace = nil
       }
+    end
+
+    def verify_with_highline
+      raise "FIXME"
     end
   end
 end

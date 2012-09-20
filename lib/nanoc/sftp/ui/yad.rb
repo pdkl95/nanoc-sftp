@@ -11,8 +11,10 @@ module Nanoc::Sftp::UI
             return @yad
           end
         end
+        false
+      else
+        @yad
       end
-      false
     end
 
     def verify_with_yad
@@ -38,6 +40,8 @@ module Nanoc::Sftp::UI
         "--image-on-top",
         "--text=#{text}",
         "--buttons-layout=spread",
+        "--button=gtk-execute:0",
+        "--button=gtk-cancel:1",
         "--borders=3"
       ]
       cmd = args.map { |x| "\"#{x}\"" }.join(' ')
@@ -53,11 +57,14 @@ module Nanoc::Sftp::UI
             else raise "unknown status: #{status}"
             end.concat(["#{fn}"])
           end.flatten.join("\n"))
+        stdin.flush
+        stdin.close
         stdout.readlines.map do |line|
             Hash[ [:ok, :bgcolor, :status, :tooltip, :file].zip line.split(/\|/) ]
         end
       end
-      if (retval = $?.to_i) == 0
+      retval = $?.to_i
+      if retval == 0
         pp @plan
         true
       else
@@ -110,8 +117,6 @@ module Nanoc::Sftp::UI
       @port = output[1].to_i
       @user = output[2]
       @pass = output[3]
-
-      puts @host
     end
   end
 end

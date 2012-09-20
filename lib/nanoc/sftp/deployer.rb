@@ -3,9 +3,9 @@
 require 'open3'
 require 'nanoc/sftp/file_sets'
 require 'nanoc/sftp/file_util'
-require 'nanoc/sftp/gui'
-require 'nanoc/sftp/gui/highline'
-require 'nanoc/sftp/gui/yad'
+require 'nanoc/sftp/ui'
+require 'nanoc/sftp/ui/highline'
+require 'nanoc/sftp/ui/yad'
 
 module Nanoc::Sftp
   class Deployer < ::Nanoc::Extra::Deployer
@@ -91,7 +91,7 @@ module Nanoc::Sftp
       if have_yad?
         verify_with_yad
       else
-        true
+        verify_with_highline
       end
     end
 
@@ -119,7 +119,7 @@ module Nanoc::Sftp
         delay -= 1.0
         print "." ; spin 1.0
       end
-      print "." ; spin n
+      print "." ; spin delay
 
       print msg_erase
     end

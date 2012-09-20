@@ -2,10 +2,10 @@ module Nanoc::Sftp
   module FileUtil
     def with_sftp(&block)
       ask_for_login_fields if missing_required_login_fields?
-      msg "openening a connection to #{@user}@#{host}"
+      msg "openening a connection to #{user}@#{host}"
       msg "option: #{login_options.inspect}"
       retval = 1
-      Net::SFTP.start(@host, @user, login_options) do |sftp|
+      Net::SFTP.start(host, user, login_options) do |sftp|
         @sftp = sftp
         retval = block.call
         @sftp = nil
