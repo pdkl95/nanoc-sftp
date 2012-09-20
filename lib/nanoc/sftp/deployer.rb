@@ -1,28 +1,69 @@
 # encoding: utf-8
 
+require 'awesome_print'
 module Nanoc::Sftp
   class Deployer < ::Nanoc::Extra::Deployer
 
-    REQUIRED_FIELDS = [:host, :user, :pass]
+    REQUIRED_FIELDS = [:host, :user, :pass, :path]
     OPTIONAL_FIELDS = [:port]
-    LOGIN_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
+    FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
 
-    attr_accessor *LOGIN_FIELDS
+    attr_accessor *FIELDS
 
     SSL_TRANSPORT_OPTIONS = {
       :compression => true
     }
 
-    attr_accessor :sftp
+    attr_reader :sftp, :srcdir, :topdir, :site
 
-    def compiled_files
-      @compiled_files ||= self.site.items.map do |item|
-        items.reps.map do |rep|
-          rep.raw_path
+    def initialize(*args)
+      super *args
+
+      FIELDS.each do |field|
+        instance_variable_set "@#{field}", config[field].to_s
+      end
+
+      @target = config[:target] || 'staging'
+      @target.upcase!
+
+      @srcdir = File.expand_path(self.source_path)
+      puts "srcdir=#{@srcdir}"
+      @topdir = File.expand_path File.join(@srcdir, '/..')
+      puts "topdir=#{@topdir}"
+      Dir.chdir(@topdir) do
+        @site = Nanoc::Site.new('.')
+      end
+    end
+
+    def compiled_files_array
+      site.items.map do |item|
+        item.reps.map do |rep|
+          rep.raw_path.sub /^#{self.source_path}\//, ''
         end
       end.flatten.compact.select do |f|
-        File.file?(f)
+        File.file? "#{self.source_path}/#{f}"
       end
+    end
+
+    def compiled_files
+      @compiled_files ||= Set.new compiled_files_array
+
+    end
+
+    def existing_files
+      @existing_files ||= Set.new
+    end
+
+    def clobbered_files
+      @clobbered_files ||= compiled_files.intersection(existing_files)
+    end
+
+    def new_files
+      @new_files ||= compiled_files.difference(clobbered_files)
+    end
+
+    def stale_files
+      @stale_files ||= existing_files.difference(clobbered_files)
     end
 
     def run
@@ -36,16 +77,10 @@ module Nanoc::Sftp
       end
 
 
-      LOGIN_FIELDS.each do |field|
-        instance_variable_set "@#{field}", self.config[field].to_s
-      end
-
-      @target = (self.config[:target] || 'staging').upcase
-
       with_sftp do
-        glob "/", '**/*' do |entry|
-          puts entry
-        end
+        list_existing_files!
+        verify_upload_set!
+        deploy_files!
       end
 
       msg "Finished!"
@@ -53,8 +88,77 @@ module Nanoc::Sftp
       system "stty #{stty_backup}"
     end
 
+    def list_existing_files!
+      list_recursive path do |entry|
+        existing_files.add entry
+      end
+    end
+
+    def verify_upload_set!
+      ap compiled_files
+      ap existing_files
+    end
+
+    def deploy_files!
+      compiled_files.each do |file|
+        upload! "#{srcdir}/#{file}", "#{path}/#{file}"
+      end
+    end
+
+    #SPIN="\\|/-"
+    #SPIN="◐◓◑◒"
+    #SPIN="◢◣◤◥"
+    #SPIN="⚀⚁⚂⚃⚄⚅"
+    SPIN="▟▄▙▌▛▀▜▐"
+    #SPIN="▖▘▝▗"
+    #SPIN="◴◷◶◵◰◳◲◱"
+
+    #SPIN="┤┘┴└├┌┬┐"
+    #SPIN="▉▊▋▌▍▎▏▎▍▌▋▊▉"
+    #SPIN="▁▃▄▅▆▇█▇▆▅▄▃"
+    #SPIN="←↖↑↗→↘↓↙"
+    def spin(n)
+      @spinval ||= 0
+      print '* '
+      while n > 0.1
+        @spinval += 1
+        @spinval = 0 if @spinval >= SPIN.length
+        c = SPIN[@spinval,1]
+        print "\b\b#{c} "
+        sleep 0.1
+        n -= 0.1
+      end
+      print "\b\b  \b\b"
+      sleep n
+    end
+
+    def upload!(local_path, remote_path)
+      puts "UPLOADING: #{local_path}"
+      puts "   --> TO: #{remote_path}"
+      if self.dry_run?
+        msg = "<dry_run - simulating upload> "
+        print msg
+        n = 0.2 + File.size(local_path).to_f / (2**20).to_f
+        n*=0.8
+        len = 1 + msg.length + n.to_i
+        bs = ("\b" * len) + (" " * len) + ("\b" * len)
+        while n > 1.0
+          print "."
+          spin 1.0
+          n -= 1.0
+        end
+        print "."
+        spin n
+        print bs
+      else
+        sftp.upload! local_path, remote_path
+      end
+      puts "ok"
+    end
+
     def skip_entry?(entry)
-      entry.name.start_with? '.'
+      entry.directory? ||
+        entry.name.start_with?('.')
     end
 
     def filtered_yield(enum)
@@ -63,12 +167,16 @@ module Nanoc::Sftp
       end
     end
 
-    def list(dir)
-      filtered_yield sftp.dir.foreach(dir).to_enum
+    def list(dir, &block)
+      filtered_yield sftp.dir.foreach(dir).to_enum, &block
     end
 
-    def glob(path, pattern)
-      filtered_yield sftp.dir.glob(path, pattern).to_enum
+    def glob(*args, &block)
+      filtered_yield sftp.dir.glob(*args).to_enum, &block
+    end
+
+    def list_recursive(dir, &block)
+      glob dir, "**/*", &block
     end
 
     def ask_for_login_fields_with_highline
