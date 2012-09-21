@@ -10,7 +10,7 @@ Gem::Specification.new do |gem|
   gem.license       = "MIT"
   gem.authors       = ["Brent Sanders"]
   gem.email         = "git@thoughtnoise.net"
-  gem.homepage      = "http://github.dom/pdkl95/nanoc-sftp"
+  gem.homepage      = "https://github.com/pdkl95/nanoc-sftp"
 
   gem.files         = `git ls-files`.split($/)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
