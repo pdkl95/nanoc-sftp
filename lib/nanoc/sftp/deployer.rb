@@ -72,10 +72,12 @@ module Nanoc::Sftp
     def deploy!
       with_sftp do
         list_existing_files!
-        if verify_upload_set!
+        if verify_deploy_plan!
+          msg "Deploy plan verified - sending files to #{host} ..."
           deploy_files!
           msg "Finished!"
         else
+          msg "*** CANCEL ***"
           msg "Quitting; server remains unchanged!"
         end
       end
@@ -87,52 +89,21 @@ module Nanoc::Sftp
       end
     end
 
-    def verify_upload_set!
-      if have_yad?
-        verify_with_yad
-      else
-        verify_with_highline
-      end
-    end
-
     def deploy_files!
-      compiled_files.each do |file|
-        upload! "#{srcdir}/#{file}", "#{path}/#{file}"
+      msg "Sending *NEW* files..."
+      new_files.each do |file|
+        upload! file
       end
-    end
 
-    def simulate_upload!(file_path)
-      msg = "<dry_run - simulating upload> "
-      print msg
-
-      file_size = File.size(file_path)
-      file_mb   = file_size.to_f / (2**20).to_f
-      min_delay = 0.15
-      per_mb    = 0.8
-      delay     = min_delay + (per_mb * file_mb)
-      msglen    = 1 + msg.length + delay.to_i
-      msg_bs    = "\b" * msglen
-      msg_sp    =  " " * msglen
-      msg_erase = "#{msg_bs}#{msg_sp}#{msg_bs}"
-
-      while delay > 1.0
-        delay -= 1.0
-        print "." ; spin 1.0
+      msg "Sending *UPDATED* files..."
+      updated_files.each do |file|
+        upload! file
       end
-      print "." ; spin delay
 
-      print msg_erase
-    end
-
-    def upload!(local_path, remote_path)
-      puts "UPLOADING: #{local_path}"
-      puts "   --> TO: #{remote_path}"
-      if self.dry_run?
-        simulate_upload!(local_path)
-      else
-        sftp.upload! local_path, remote_path
+      msg "Removing *STALE* files..."
+      stale_files.each do |file|
+        expunge! file
       end
-      puts "ok"
     end
 
     def missing_required_login_fields?

@@ -41,3 +41,4 @@ module Nanoc::Sftp
     end
   end
 end
+

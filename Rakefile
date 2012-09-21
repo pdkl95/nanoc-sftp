@@ -28,12 +28,13 @@ class Gem::Tasks::Install
 end
 task :validate
 
-Gem::Tasks.new(:scm => false) do |tasks|
-  
-end
+Gem::Tasks.new(:scm => false)
 
-require 'rdoc/task'
-RDoc::Task.new do |rdoc|
-  rdoc.title = "nanoc-sftp"
-end
-task :doc => :rdoc
+#require 'rdoc/task'
+#RDoc::Task.new do |rdoc|
+#  rdoc.title = "nanoc-sftp"
+#end
+#task :doc => :rdoc
+
+
+task :default => :build

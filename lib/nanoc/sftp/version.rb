@@ -1,8 +1,8 @@
 module Nanoc
   module Sftp
-    VERSION_MAJOR = 0
+    VERSION_MAJOR = 1
     VERSION_MINOR = 0
-    VERSION_TINY  = 1
+    VERSION_TINY  = 0
     VERSION = [VERSION_MAJOR, VERSION_MINOR, VERSION_TINY].join('.')
   end
 end

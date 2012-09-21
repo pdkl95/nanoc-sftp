@@ -17,7 +17,7 @@ module Nanoc::Sftp::UI
       end
     end
 
-    def verify_with_yad
+    def verify_deploy_plan_yad!
       text = "<span size='x-large'>Deployment Plan</span>\n<span>Sould the following changes be made on the server?</span>"
       args = [
         "--list",
@@ -47,7 +47,7 @@ module Nanoc::Sftp::UI
       cmd = args.map { |x| "\"#{x}\"" }.join(' ')
       cmd = "#{@yad} #{cmd}"
 
-      @plan = Open3.popen3(cmd) do |stdin,stdout,stderr|
+      Open3.popen3(cmd) do |stdin,stdout,stderr,wait_thr|
         stdin.write(full_changeset.map do |x|
             fn, status = *x
             case status
@@ -59,18 +59,25 @@ module Nanoc::Sftp::UI
           end.flatten.join("\n"))
         stdin.flush
         stdin.close
-        stdout.readlines.map do |line|
+        @plan = stdout.readlines.map do |line|
             Hash[ [:ok, :bgcolor, :status, :tooltip, :file].zip line.split(/\|/) ]
         end
+        @success = wait_thr.value.success?
       end
-      retval = $?.to_i
-      if retval == 0
-        pp @plan
-        true
-      else
-        msg "*** CANCEL ***"
-        false
+
+      if @success
+        @plan.each do |x|
+          if x[:ok] == 'FALSE'
+            case x[:status]
+            when    'NEW' then     new_files
+            when 'UPDATE' then updated_files
+            when  'STALE' then   stale_files
+            else raise "bad status value: #{x[:status]}"
+            end.delete x[:file]
+          end
+        end
       end
+
     end
 
     def ask_for_login_fields_with_yad
