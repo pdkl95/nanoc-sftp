@@ -107,9 +107,9 @@ module Nanoc::Sftp::UI
         "--field=Port:NUM",
         "--field=Username",
         "--field=Password:H",
-        "thoughtnoise.net",
-        "2501!22..65535!1!0",
-        "telleena",
+        @host,
+        @port,
+        @user,
         "" # empty pass
       ]
       cmd = args.map { |x| "'#{x}'" }.join(' ')
